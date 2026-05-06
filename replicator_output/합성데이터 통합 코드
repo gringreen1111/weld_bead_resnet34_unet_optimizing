@@ -1,0 +1,40 @@
+#!/bin/bash
+SRC_ROOT="/home/kim/replicator_output"
+DEST_DIR="/home/kim/zero_output1"
+
+rm -rf "$DEST_DIR"
+mkdir -p "$DEST_DIR/binary_masks"
+
+total_count=0
+echo "[데이터 통합 시작] 경로: $SRC_ROOT"
+
+for batch_path in $(ls -d ${SRC_ROOT}/oblique_v5_batch_*/ | sort -V); do
+    batch_name=$(basename "$batch_path")
+    echo "처리 중: $batch_name"
+
+    rgb_list=($(ls ${batch_path}rgb_*.png 2>/dev/null | sort -V))
+    mask_list=($(ls ${batch_path}binary_masks/mask_*.png 2>/dev/null | sort -V))
+
+    num_rgb=${#rgb_list[@]}
+    num_mask=${#mask_list[@]}
+    limit=$(( num_rgb < num_mask ? num_rgb : num_mask ))
+
+    if [ "$limit" -eq 0 ]; then
+        echo "  SKIP - $batch_name (파일 없음)"
+        continue
+    fi
+
+    for ((i=0; i<limit; i++)); do
+        new_id=$(printf "%05d" $total_count)
+        cp "${rgb_list[$i]}" "$DEST_DIR/rgb_${new_id}.png"
+        cp "${mask_list[$i]}" "$DEST_DIR/binary_masks/mask_${new_id}.png"
+        total_count=$((total_count + 1))
+    done
+
+    echo "  OK - $limit쌍 복사 (누적: $total_count)"
+done
+
+echo "=========================================="
+echo "[완료] 총 $total_count 세트 -> $DEST_DIR"
+echo "  RGB:  $DEST_DIR/rgb_*.png"
+echo "  Mask: $DEST_DIR/binary_masks/mask_*.png"
